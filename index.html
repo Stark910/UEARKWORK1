@@ -61,8 +61,42 @@
       font-weight:800;
       text-align:center;
     }
-    body.view-mode .date-input,
-    body.view-mode .date-mode { display:none !important; }
+    .date-flags {
+      display:flex;
+      gap:6px;
+      justify-content:center;
+      margin-top:6px;
+    }
+    .date-flag {
+      display:flex;
+      align-items:center;
+      gap:3px;
+      font-size:12px;
+      font-weight:800;
+      color:#475569;
+      white-space:nowrap;
+    }
+    .date-flag input {
+      width:auto;
+      transform:scale(1.05);
+    }
+    .date-badge {
+      display:inline-block;
+      font-size:13px;
+      font-weight:900;
+      border-radius:999px;
+      padding:3px 8px;
+      margin-top:6px;
+      background:#fff7ed;
+      color:#f97316;
+      border:1px solid #fed7aa;
+    }
+    .date-badge.uncertain {
+      background:#f8fafc;
+      color:#64748b;
+      border-color:#cbd5e1;
+    }
+    body.view-mode .date-input { display:none !important; }
     .mode-badge {
       display:inline-flex; align-items:center; justify-content:center;
       padding:10px 16px; border-radius:999px; font-weight:900;
@@ -213,13 +247,19 @@ function renderStats(){
     Object.entries(stats).map(([k,v])=>`<div class="stat">${k}：${v}</div>`).join("");
 }
 
+function getSortKey(row){
+  if(row.priority) return "0-" + (row.sortDate || "9999-12-31");
+  if(row.uncertain) return "9-" + (row.sortDate || "9999-12-31");
+  return "5-" + (row.sortDate || "9999-12-31");
+}
+
 function sortRows(){
-  current().rows.sort((a,b)=>(a.sortDate||"9999-12-31").localeCompare(b.sortDate||"9999-12-31"));
+  current().rows.sort((a,b)=>getSortKey(a).localeCompare(getSortKey(b)));
   render();
 }
 
 function sortRowsSilently(){
-  current().rows.sort((a,b)=>(a.sortDate||"9999-12-31").localeCompare(b.sortDate||"9999-12-31"));
+  current().rows.sort((a,b)=>getSortKey(a).localeCompare(getSortKey(b)));
 }
 
 function render(){
@@ -230,20 +270,24 @@ function render(){
   tbody.innerHTML = "";
   current().rows.forEach((r,i)=>{
     r.color = r.color || "#2563eb";
-    r.dateMode = r.dateMode || (r.sortDate === "0000-00-00" ? "priority" : (r.sortDate === "9999-12-31" || r.date === "未確定" ? "uncertain" : "confirmed"));
+    r.priority = !!r.priority;
+    r.uncertain = !!r.uncertain;
+    if(!r.sortDate || r.sortDate === "9999-12-31"){ r.sortDate = "2026-12-31"; }
+    r.date = formatDisplayDate(r.sortDate, r.date);
     const closedInfo = activeTeam === -1 ? `<div class="mini">來源：${r.closedFrom || "未記錄"}｜結案日：${r.closedAt || "未記錄"}</div>` : "";
     const tr = document.createElement("tr");
     tr.innerHTML = `
       <td><div class="num" style="background:${r.color}">${i+1}</div></td>
       <td>
-        <div class="date-big" style="color:${r.color}">${formatDisplayDate(r)}</div>
-        <select class="date-mode edit-only" onchange="updateDateMode(${i}, this.value)">
-          <option value="priority" ${r.dateMode === "priority" ? "selected" : ""}>置頂</option>
-          <option value="confirmed" ${r.dateMode !== "priority" && r.dateMode !== "uncertain" ? "selected" : ""}>已確定</option>
-          <option value="uncertain" ${r.dateMode === "uncertain" ? "selected" : ""}>未確定</option>
-        </select>
-        <input class="date-input" type="date" value="${r.dateMode === "priority" || r.dateMode === "uncertain" ? "" : r.sortDate}" onchange="updateDate(${i}, this.value)" ${r.dateMode === "priority" || r.dateMode === "uncertain" ? "disabled" : ""}>
-        <div class="mini edit-only">置頂會排最上；未確定會排最後</div>
+        <div class="date-big" style="color:${r.color}">${formatDisplayDate(r.sortDate, r.date)}</div>
+        ${r.priority ? `<div class="date-badge">優先置頂</div>` : ""}
+        ${r.uncertain ? `<div class="date-badge uncertain">未確定</div>` : ""}
+        <input class="date-input" type="date" value="${r.sortDate || "2026-12-31"}" onchange="updateDate(${i}, this.value)">
+        <div class="date-flags edit-only">
+          <label class="date-flag"><input type="checkbox" ${r.priority ? "checked" : ""} onchange="togglePriority(${i}, this.checked)">置頂</label>
+          <label class="date-flag"><input type="checkbox" ${r.uncertain ? "checked" : ""} onchange="toggleUncertain(${i}, this.checked)">未確定</label>
+        </div>
+        <div class="mini edit-only">日期、置頂、未確定彼此獨立；不會互相覆蓋</div>
       </td>
       <td>
         <input value="${escapeHtml(r.project)}" onchange="updateRow(${i},'project',this.value)" style="font-weight:800">
@@ -273,12 +317,8 @@ function escapeHtml(str){
   return String(str).replace(/[&<>"']/g, s => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[s]));
 }
 
-function formatDisplayDate(row){
-  if(row.dateMode === "priority" || row.sortDate === "0000-00-00") return "置頂";
-  if(row.dateMode === "uncertain" || row.sortDate === "9999-12-31" || row.date === "未確定") return "未確定";
-  const sortDate = row.sortDate;
-  const fallback = row.date;
-  if(!sortDate) return fallback || "未確定";
+function formatDisplayDate(sortDate, fallback){
+  if(!sortDate) return fallback || "未設定日期";
   const parts = sortDate.split("-");
   if(parts.length !== 3) return fallback || sortDate;
   const d = new Date(sortDate + "T00:00:00");
@@ -288,27 +328,20 @@ function formatDisplayDate(row){
 
 function updateDate(i, value){
   const page = current();
-  page.rows[i].dateMode = "confirmed";
   page.rows[i].sortDate = value;
-  page.rows[i].date = formatDisplayDate(page.rows[i]);
+  page.rows[i].date = formatDisplayDate(value, page.rows[i].date);
   render();
 }
 
-function updateDateMode(i, mode){
+function togglePriority(i, checked){
   const page = current();
-  page.rows[i].dateMode = mode;
-  if(mode === "priority"){
-    page.rows[i].sortDate = "0000-00-00";
-    page.rows[i].date = "置頂";
-  } else if(mode === "uncertain"){
-    page.rows[i].sortDate = "9999-12-31";
-    page.rows[i].date = "未確定";
-  } else {
-    if(page.rows[i].sortDate === "0000-00-00" || page.rows[i].sortDate === "9999-12-31"){
-      page.rows[i].sortDate = "2026-12-31";
-    }
-    page.rows[i].date = formatDisplayDate(page.rows[i]);
-  }
+  page.rows[i].priority = checked;
+  render();
+}
+
+function toggleUncertain(i, checked){
+  const page = current();
+  page.rows[i].uncertain = checked;
   render();
 }
 
@@ -331,9 +364,10 @@ function updateNotes(v){ current().notes = v; }
 function addRow(){
   if(activeTeam === -1){ alert("已結案頁面只收納結案項目，請回到其他分頁新增任務。"); return; }
   current().rows.push({
-    date:"未確定",
-    sortDate:"9999-12-31",
-    dateMode:"uncertain",
+    date:"12/31（四）",
+    sortDate:"2026-12-31",
+    priority:false,
+    uncertain:true,
     project:"新專案",
     detail:"請輸入細項",
     status:"待確認",
@@ -422,12 +456,30 @@ function saveLocal(){
   alert("已儲存到本機瀏覽器");
 }
 
+function migrateLegacyDateModes(){
+  const allPages = [...teams, closedArchive];
+  allPages.forEach(page => {
+    (page.rows || []).forEach(r => {
+      if(r.dateMode === "uncertain"){
+        r.uncertain = true;
+        if(!r.sortDate || r.sortDate === "9999-12-31") r.sortDate = "2026-12-31";
+      }
+      if(r.dateMode === "priority"){
+        r.priority = true;
+        if(!r.sortDate || r.sortDate === "0000-00-00") r.sortDate = "2026-12-31";
+      }
+      delete r.dateMode;
+    });
+  });
+}
+
 function loadLocal(){
   const data = localStorage.getItem("multiTeamProjectSchedule");
   if(!data){ alert("目前沒有本機儲存資料"); return; }
   const obj = JSON.parse(data);
   teams = obj.teams || teams;
   closedArchive = obj.closedArchive || closedArchive;
+  migrateLegacyDateModes();
   activeTeam = (typeof obj.activeTeam === "number") ? obj.activeTeam : 0;
   document.getElementById("title").value = obj.title || document.getElementById("title").value;
   document.getElementById("subtitle").value = obj.subtitle || document.getElementById("subtitle").value;
@@ -460,6 +512,7 @@ function exportJPG(){
 }
 
 document.getElementById("themeColor").addEventListener("input", e => document.documentElement.style.setProperty("--main", e.target.value));
+migrateLegacyDateModes();
 render();
 </script>
 </body>
