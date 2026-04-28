@@ -15,23 +15,23 @@
     button { border:0; background:var(--main); color:#fff; padding:10px 16px; border-radius:12px; font-weight:700; cursor:pointer; }
     button.secondary { background:#fff; color:var(--main); border:1px solid #b8c7df; }
     button.danger { background:#dc2626; }
+    button.success { background:#16a34a; margin-bottom:6px; }
     button.tab { background:#fff; color:#334155; border:1px solid #cbd5e1; }
     button.tab.active { background:var(--main); color:#fff; border-color:var(--main); }
     input, textarea, select { font-family:inherit; font-size:15px; border:1px solid #cbd5e1; border-radius:10px; padding:8px; width:100%; box-sizing:border-box; background:white; }
     textarea { min-height:48px; resize:vertical; }
     .table-wrap { overflow-x:auto; background:#fff; border:1px solid #cbd5e1; border-radius:18px; box-shadow:0 10px 30px rgba(15,23,42,.06); }
-    table { width:100%; min-width:1380px; border-collapse:collapse; }
+    table { width:100%; min-width:1240px; border-collapse:collapse; }
     th { background:var(--main); color:white; padding:14px 10px; font-size:18px; white-space:nowrap; }
     td { border-top:1px solid #dbe6f5; border-right:1px solid #dbe6f5; padding:10px; vertical-align:top; }
     td:last-child, th:last-child { border-right:0; }
     .num { width:42px; height:42px; border-radius:50%; color:white; display:flex; align-items:center; justify-content:center; font-weight:900; margin:auto; }
     .status { font-weight:800; text-align:center; }
-    .mini { font-size:12px; color:#64748b; margin-top:6px; }
+    .mini { font-size:12px; color:#64748b; margin-top:6px; line-height:1.5; }
     .color-select { font-weight:800; text-align:center; }
     .team-tools { display:grid; grid-template-columns:1fr 1fr auto auto; gap:10px; align-items:center; margin-top:14px; }
     .stats { display:flex; flex-wrap:wrap; gap:10px; justify-content:center; margin-top:12px; }
     .stat { background:#f8fafc; border:1px solid #dbe6f5; border-radius:14px; padding:8px 12px; font-weight:800; color:#334155; }
-    
     body.view-mode .edit-only { display:none !important; }
     body.view-mode input,
     body.view-mode textarea,
@@ -42,25 +42,30 @@
       resize: none;
       box-shadow: none !important;
     }
-    body.view-mode .table-wrap { box-shadow:0 10px 30px rgba(15,23,42,.08); }
-    body.view-mode .panel { box-shadow:0 10px 30px rgba(15,23,42,.08); }
     body.view-mode textarea { overflow:hidden; }
-    .mode-badge {
-      display:inline-flex;
-      align-items:center;
-      justify-content:center;
-      padding:10px 16px;
-      border-radius:999px;
+    .date-big {
+      font-size:24px;
       font-weight:900;
-      background:#eef2ff;
-      color:var(--main);
-      border:1px solid #c7d2fe;
+      text-align:center;
+      line-height:1.25;
+      margin-bottom:8px;
+      letter-spacing:.02em;
+    }
+    .date-input {
+      font-size:14px;
+      text-align:center;
+      font-weight:800;
+    }
+    body.view-mode .date-input { display:none !important; }
+    .mode-badge {
+      display:inline-flex; align-items:center; justify-content:center;
+      padding:10px 16px; border-radius:999px; font-weight:900;
+      background:#eef2ff; color:var(--main); border:1px solid #c7d2fe;
     }
     @media(max-width:900px){ .wrap{padding:14px}.team-tools{grid-template-columns:1fr} }
-    
   </style>
 </head>
-<body>
+<body class="view-mode">
 <div class="wrap" id="captureArea">
   <div class="panel">
     <input id="title" value="玉意方舟｜多團隊專案任務時間表" style="font-size:36px;font-weight:900;text-align:center;color:var(--main);border:0;">
@@ -76,8 +81,8 @@
     </div>
 
     <div class="toolbar">
-      <span id="modeBadge" class="mode-badge">目前：編輯模式</span>
-      <button onclick="toggleMode()" class="secondary" id="modeToggle">切換為瀏覽模式</button>
+      <span id="modeBadge" class="mode-badge">目前：預覽模式</span>
+      <button onclick="toggleMode()" class="secondary" id="modeToggle">切換為編輯模式</button>
       <label class="edit-only">主色 <input type="color" id="themeColor" value="#08245c" style="width:60px;height:38px;padding:2px;"></label>
       <button onclick="addRow()" class="edit-only">新增任務</button>
       <button onclick="sortRows()" class="edit-only">依時間排序＋自動編號</button>
@@ -94,14 +99,13 @@
       <thead>
         <tr>
           <th style="width:70px;">排序</th>
-          <th style="width:160px;">時間 / 時程</th>
-          <th style="width:150px;">排序日期</th>
+          <th style="width:190px;">日期 / 時程</th>
           <th style="width:320px;">專案內容 / 細項</th>
           <th style="width:130px;">狀態</th>
           <th style="width:300px;">重點備註 / 說明</th>
           <th style="width:220px;">追蹤提醒</th>
-          <th style="width:120px;">顏色</th>
-          <th style="width:90px;" class="edit-only export-hide">操作</th>
+          <th style="width:120px;" class="edit-only">顏色</th>
+          <th style="width:110px;" class="edit-only export-hide">操作</th>
         </tr>
       </thead>
       <tbody id="tbody"></tbody>
@@ -123,25 +127,25 @@ const palette = {
   "橘":"#f97316"
 };
 
-const statusOptions = ["進行中","規劃中","延期中","待定","已排程","待確認","追蹤中","已完成"];
+const statusOptions = ["進行中","待確認","持續追蹤","已完成","已結案"];
 
 function baseRows(){
  return [
-  {date:"3/27（四）", sortDate:"2025-03-27", project:"ESG課程拍攝剪輯", detail:"優先剪出第一支", status:"進行中", note:"已拍攝，剪輯中；優先完成第一支影片", follow:"提醒剪輯人員", color:"#2563eb"},
-  {date:"5月初", sortDate:"2025-05-01", project:"黃金澄個人IP短影片打造", detail:"提供腳本與拍攝方向企劃，協助提醒剪輯人員", status:"規劃中", note:"5月初提供企劃內容", follow:"提醒剪輯人員", color:"#f97316"},
-  {date:"五月中", sortDate:"2025-05-15", project:"黃金澄個人IP短影片拍攝", detail:"依企劃內容執行拍攝", status:"規劃中", note:"5月中進行拍攝", follow:"提醒剪輯人員", color:"#f97316"},
-  {date:"5/15後", sortDate:"2025-05-16", project:"鍍膜產品影片拍攝", detail:"產品狀況延期", status:"延期中", note:"依產品狀況調整拍攝時間", follow:"持續追蹤產品狀況", color:"#eab308"},
-  {date:"6/6（五）", sortDate:"2025-06-06", project:"產品記者發表會", detail:"待定", status:"待定", note:"時間待確認", follow:"持續追蹤", color:"#eab308"},
-  {date:"7/8（二）晚上", sortDate:"2025-07-08", project:"大直典華 / 北投社就職典禮拍攝", detail:"一樣出錄影", status:"已排程", note:"包含錄影作業", follow:"行程前再次確認", color:"#16a34a"},
-  {date:"8/24（日）台中", sortDate:"2025-08-24", project:"蘋果地圖大師形象照", detail:"台中場", status:"已排程", note:"台中場", follow:"行程前再次確認", color:"#16a34a"},
-  {date:"8/26（二）台北", sortDate:"2025-08-26", project:"蘋果地圖大師形象照", detail:"台北場", status:"已排程", note:"台北場", follow:"行程前再次確認", color:"#16a34a"},
-  {date:"12/1（一）台中", sortDate:"2025-12-01", project:"蘋果地圖大師形象照", detail:"台中場", status:"已排程", note:"台中場", follow:"行程前再次確認", color:"#16a34a"},
-  {date:"12/4（四）台北", sortDate:"2025-12-04", project:"蘋果地圖大師形象照", detail:"台北場", status:"已排程", note:"台北場", follow:"行程前再次確認", color:"#16a34a"},
-  {date:"彈性 / 待確認", sortDate:"2025-12-31", project:"淡江短片剪輯 / 小鳳姐25週年拍攝", detail:"待定", status:"待定", note:"討論中，時間待確認", follow:"持續追蹤", color:"#eab308"},
-  {date:"待 CP 確認", sortDate:"2025-12-31", project:"Dreamer 開箱房屋影片拍攝", detail:"待 CP 確認要拍攝的作品", status:"待確認", note:"等待 CP 提供拍攝作品，再安排拍攝時間", follow:"追蹤 CP 確認", color:"#eab308"},
-  {date:"時間彈性安排", sortDate:"2025-12-31", project:"Osca 女兒全家福拍攝追蹤", detail:"持續追蹤安排拍攝", status:"追蹤中", note:"持續追蹤安排拍攝", follow:"持續追蹤", color:"#dc2626"},
-  {date:"待剪輯完成", sortDate:"2025-12-31", project:"蘇總剪輯共需出 4 支", detail:"詳細規格參考討論內容", status:"進行中", note:"共需出 4 支影片，依討論內容執行", follow:"提醒剪輯人員", color:"#2563eb"},
-  {date:"長期追蹤中", sortDate:"2025-12-31", project:"崔小姐", detail:"結尾調整，記得追蹤 / 依舊沒回覆", status:"追蹤中", note:"持續追蹤，等待回覆", follow:"持續追蹤", color:"#dc2626"}
+  {date:"3/27（四）", sortDate:"2026-03-27", project:"ESG課程拍攝剪輯", detail:"優先剪出第一支", status:"進行中", note:"已拍攝，剪輯中；優先完成第一支影片", follow:"提醒剪輯人員", color:"#2563eb"},
+  {date:"5月初", sortDate:"2026-05-01", project:"黃金澄個人IP短影片打造", detail:"提供腳本與拍攝方向企劃，協助提醒剪輯人員", status:"規劃中", note:"5月初提供企劃內容", follow:"提醒剪輯人員", color:"#f97316"},
+  {date:"五月中", sortDate:"2026-05-15", project:"黃金澄個人IP短影片拍攝", detail:"依企劃內容執行拍攝", status:"規劃中", note:"5月中進行拍攝", follow:"提醒剪輯人員", color:"#f97316"},
+  {date:"5/15後", sortDate:"2026-05-16", project:"鍍膜產品影片拍攝", detail:"產品狀況延期", status:"延期中", note:"依產品狀況調整拍攝時間", follow:"持續追蹤產品狀況", color:"#eab308"},
+  {date:"6/6（五）", sortDate:"2026-06-06", project:"產品記者發表會", detail:"待定", status:"待定", note:"時間待確認", follow:"持續追蹤", color:"#eab308"},
+  {date:"7/8（二）晚上", sortDate:"2026-07-08", project:"大直典華 / 北投社就職典禮拍攝", detail:"一樣出錄影", status:"已排程", note:"包含錄影作業", follow:"行程前再次確認", color:"#16a34a"},
+  {date:"8/24（日）台中", sortDate:"2026-08-24", project:"蘋果地圖大師形象照", detail:"台中場", status:"已排程", note:"台中場", follow:"行程前再次確認", color:"#16a34a"},
+  {date:"8/26（二）台北", sortDate:"2026-08-26", project:"蘋果地圖大師形象照", detail:"台北場", status:"已排程", note:"台北場", follow:"行程前再次確認", color:"#16a34a"},
+  {date:"12/1（一）台中", sortDate:"2026-12-01", project:"蘋果地圖大師形象照", detail:"台中場", status:"已排程", note:"台中場", follow:"行程前再次確認", color:"#16a34a"},
+  {date:"12/4（四）台北", sortDate:"2026-12-04", project:"蘋果地圖大師形象照", detail:"台北場", status:"已排程", note:"台北場", follow:"行程前再次確認", color:"#16a34a"},
+  {date:"彈性 / 待確認", sortDate:"2026-12-31", project:"淡江短片剪輯 / 小鳳姐25週年拍攝", detail:"待定", status:"待定", note:"討論中，時間待確認", follow:"持續追蹤", color:"#eab308"},
+  {date:"待 CP 確認", sortDate:"2026-12-31", project:"Dreamer 開箱房屋影片拍攝", detail:"待 CP 確認要拍攝的作品", status:"待確認", note:"等待 CP 提供拍攝作品，再安排拍攝時間", follow:"追蹤 CP 確認", color:"#eab308"},
+  {date:"時間彈性安排", sortDate:"2026-12-31", project:"Osca 女兒全家福拍攝追蹤", detail:"持續追蹤安排拍攝", status:"追蹤中", note:"持續追蹤安排拍攝", follow:"持續追蹤", color:"#dc2626"},
+  {date:"待剪輯完成", sortDate:"2026-12-31", project:"蘇總剪輯共需出 4 支", detail:"詳細規格參考討論內容", status:"進行中", note:"共需出 4 支影片，依討論內容執行", follow:"提醒剪輯人員", color:"#2563eb"},
+  {date:"長期追蹤中", sortDate:"2026-12-31", project:"崔小姐", detail:"結尾調整，記得追蹤 / 依舊沒回覆", status:"追蹤中", note:"持續追蹤，等待回覆", follow:"持續追蹤", color:"#dc2626"}
  ];
 }
 
@@ -152,16 +156,17 @@ let teams = [
   { name:"追蹤業務組", notes:"重點追蹤外部回覆、待確認、延期與卡關案件。", rows:baseRows().filter(r => r.status.includes("待") || r.status.includes("追蹤") || r.status.includes("延期")) }
 ];
 
+let closedArchive = { name:"已結案", notes:"這裡會自動收納已結案項目。", rows:[] };
 let activeTeam = 0;
-let isEditMode = true;
+let isEditMode = false;
 
-function current(){ return teams[activeTeam]; }
+function current(){ return activeTeam === -1 ? closedArchive : teams[activeTeam]; }
 
 function toggleMode(){
   isEditMode = !isEditMode;
   document.body.classList.toggle("view-mode", !isEditMode);
-  document.getElementById("modeBadge").textContent = isEditMode ? "目前：編輯模式" : "目前：瀏覽模式";
-  document.getElementById("modeToggle").textContent = isEditMode ? "切換為瀏覽模式" : "切換為編輯模式";
+  document.getElementById("modeBadge").textContent = isEditMode ? "目前：編輯模式" : "目前：預覽模式";
+  document.getElementById("modeToggle").textContent = isEditMode ? "切換為預覽模式" : "切換為編輯模式";
   autoResizeTextareas();
 }
 
@@ -182,6 +187,11 @@ function renderTabs(){
     btn.onclick = () => { activeTeam = i; render(); };
     box.appendChild(btn);
   });
+  const closedBtn = document.createElement("button");
+  closedBtn.className = "tab" + (activeTeam === -1 ? " active" : "");
+  closedBtn.textContent = "已結案";
+  closedBtn.onclick = () => { activeTeam = -1; render(); };
+  box.appendChild(closedBtn);
 }
 
 function renderStats(){
@@ -209,29 +219,37 @@ function sortRowsSilently(){
 
 function render(){
   renderTabs();
+  document.querySelector(".team-tools").style.display = activeTeam === -1 ? "none" : "";
   sortRowsSilently();
   const tbody = document.getElementById("tbody");
   tbody.innerHTML = "";
   current().rows.forEach((r,i)=>{
     r.color = r.color || "#2563eb";
+    const closedInfo = activeTeam === -1 ? `<div class="mini">來源：${r.closedFrom || "未記錄"}｜結案日：${r.closedAt || "未記錄"}</div>` : "";
     const tr = document.createElement("tr");
     tr.innerHTML = `
       <td><div class="num" style="background:${r.color}">${i+1}</div></td>
-      <td><textarea onchange="updateRow(${i},'date',this.value)" style="color:${r.color};font-weight:800;text-align:center">${r.date}</textarea></td>
-      <td><input type="date" value="${r.sortDate}" onchange="updateRow(${i},'sortDate',this.value)"><div class="mini">變更後自動排序編號</div></td>
+      <td>
+        <div class="date-big" style="color:${r.color}">${formatDisplayDate(r.sortDate, r.date)}</div>
+        <input class="date-input" type="date" value="${r.sortDate}" onchange="updateDate(${i}, this.value)">
+        <div class="mini edit-only">選日期後會自動排序、放大顯示並套用列色</div>
+      </td>
       <td>
         <input value="${escapeHtml(r.project)}" onchange="updateRow(${i},'project',this.value)" style="font-weight:800">
         <textarea onchange="updateRow(${i},'detail',this.value)" style="margin-top:6px;color:#1d4ed8">${r.detail}</textarea>
       </td>
       <td><select class="status" onchange="updateRow(${i},'status',this.value)" style="color:${r.color};border-color:${r.color}">${statusOptions.map(s=>`<option ${s===r.status?'selected':''}>${s}</option>`).join("")}</select></td>
-      <td><textarea onchange="updateRow(${i},'note',this.value)">${r.note}</textarea></td>
+      <td><textarea onchange="updateRow(${i},'note',this.value)">${r.note}</textarea>${closedInfo}</td>
       <td><textarea onchange="updateRow(${i},'follow',this.value)" style="color:${r.color};font-weight:800">${r.follow}</textarea></td>
-      <td>
+      <td class="edit-only">
         <select class="color-select" onchange="updateRow(${i},'color',this.value)" style="color:${r.color};border-color:${r.color}">
           ${Object.entries(palette).map(([name,val])=>`<option value="${val}" ${val===r.color?'selected':''}>${name}</option>`).join("")}
         </select>
       </td>
-      <td class="edit-only export-hide"><button onclick="deleteRow(${i})" class="danger">刪除</button></td>
+      <td class="edit-only export-hide">
+        ${activeTeam === -1 ? `<button onclick="restoreClosed(${i})" class="success">復原</button>` : `<button onclick="closeRow(${i})" class="success">結案</button>`}
+        <button onclick="deleteRow(${i})" class="danger">刪除</button>
+      </td>
     `;
     tbody.appendChild(tr);
   });
@@ -245,17 +263,43 @@ function escapeHtml(str){
   return String(str).replace(/[&<>"']/g, s => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[s]));
 }
 
+function formatDisplayDate(sortDate, fallback){
+  if(!sortDate) return fallback || "未定";
+  const parts = sortDate.split("-");
+  if(parts.length !== 3) return fallback || sortDate;
+  const d = new Date(sortDate + "T00:00:00");
+  const week = ["日","一","二","三","四","五","六"][d.getDay()];
+  return `${Number(parts[1])}/${Number(parts[2])}（${week}）`;
+}
+
+function updateDate(i, value){
+  const page = current();
+  page.rows[i].sortDate = value;
+  page.rows[i].date = formatDisplayDate(value, page.rows[i].date);
+  render();
+}
+
 function updateRow(i,k,v){
-  current().rows[i][k]=v;
+  const page = current();
+  page.rows[i][k]=v;
+  if(k === "status" && v === "已結案" && activeTeam !== -1){
+    const item = page.rows.splice(i,1)[0];
+    item.status = "已結案";
+    item.closedFrom = page.name;
+    item.closedAt = new Date().toLocaleDateString("zh-TW");
+    item.color = "#16a34a";
+    closedArchive.rows.push(item);
+  }
   render();
 }
 
 function updateNotes(v){ current().notes = v; }
 
 function addRow(){
+  if(activeTeam === -1){ alert("已結案頁面只收納結案項目，請回到其他分頁新增任務。"); return; }
   current().rows.push({
-    date:"新時間",
-    sortDate:"2025-12-31",
+    date:"12/31（四）",
+    sortDate:"2026-12-31",
     project:"新專案",
     detail:"請輸入細項",
     status:"待確認",
@@ -268,6 +312,29 @@ function addRow(){
 
 function deleteRow(i){ current().rows.splice(i,1); render(); }
 
+function closeRow(i){
+  if(activeTeam === -1) return;
+  const page = current();
+  const item = page.rows.splice(i,1)[0];
+  item.status = "已結案";
+  item.closedFrom = page.name;
+  item.closedAt = new Date().toLocaleDateString("zh-TW");
+  item.color = "#16a34a";
+  closedArchive.rows.push(item);
+  render();
+}
+
+function restoreClosed(i){
+  const item = closedArchive.rows.splice(i,1)[0];
+  item.status = "待確認";
+  const targetName = item.closedFrom || "總覽";
+  let targetIndex = teams.findIndex(t => t.name === targetName);
+  if(targetIndex < 0) targetIndex = 0;
+  teams[targetIndex].rows.push(item);
+  activeTeam = targetIndex;
+  render();
+}
+
 function addTeam(){
   const name = document.getElementById("newTeamName").value.trim();
   if(!name){ alert("請先輸入團隊名稱"); return; }
@@ -278,11 +345,13 @@ function addTeam(){
 }
 
 function renameTeam(){
+  if(activeTeam === -1){ alert("已結案頁面不能改名"); return; }
   const name = prompt("請輸入新的分頁名稱", current().name);
   if(name && name.trim()){ current().name = name.trim(); render(); }
 }
 
 function deleteTeam(){
+  if(activeTeam === -1){ alert("已結案頁面不能刪除"); return; }
   if(teams.length <= 1){ alert("至少需要保留一個分頁"); return; }
   if(confirm("確定刪除目前分頁？此動作無法復原。")){
     teams.splice(activeTeam,1);
@@ -297,8 +366,8 @@ function exportJSON(){
     subtitle:document.getElementById("subtitle").value,
     activeTeam,
     theme:document.getElementById("themeColor").value,
-    isEditMode,
-    teams
+    teams,
+    closedArchive
   }, null, 2);
   const blob = new Blob([data], {type:"application/json"});
   const a = document.createElement("a");
@@ -310,6 +379,7 @@ function exportJSON(){
 function saveLocal(){
   localStorage.setItem("multiTeamProjectSchedule", JSON.stringify({
     teams,
+    closedArchive,
     activeTeam,
     title:document.getElementById("title").value,
     subtitle:document.getElementById("subtitle").value,
@@ -324,15 +394,16 @@ function loadLocal(){
   if(!data){ alert("目前沒有本機儲存資料"); return; }
   const obj = JSON.parse(data);
   teams = obj.teams || teams;
-  activeTeam = obj.activeTeam || 0;
+  closedArchive = obj.closedArchive || closedArchive;
+  activeTeam = (typeof obj.activeTeam === "number") ? obj.activeTeam : 0;
   document.getElementById("title").value = obj.title || document.getElementById("title").value;
   document.getElementById("subtitle").value = obj.subtitle || document.getElementById("subtitle").value;
   if(obj.theme){ document.getElementById("themeColor").value = obj.theme; document.documentElement.style.setProperty("--main", obj.theme); }
   if(typeof obj.isEditMode === "boolean"){
     isEditMode = obj.isEditMode;
     document.body.classList.toggle("view-mode", !isEditMode);
-    document.getElementById("modeBadge").textContent = isEditMode ? "目前：編輯模式" : "目前：瀏覽模式";
-    document.getElementById("modeToggle").textContent = isEditMode ? "切換為瀏覽模式" : "切換為編輯模式";
+    document.getElementById("modeBadge").textContent = isEditMode ? "目前：編輯模式" : "目前：預覽模式";
+    document.getElementById("modeToggle").textContent = isEditMode ? "切換為預覽模式" : "切換為編輯模式";
   }
   render();
 }
