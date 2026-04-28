@@ -56,28 +56,7 @@
       text-align:center;
       font-weight:800;
     }
-    .date-flags {
-      display:flex;
-      justify-content:center;
-      gap:10px;
-      margin-bottom:8px;
-      font-size:13px;
-      font-weight:800;
-      color:#334155;
-    }
-    .date-flags label {
-      display:inline-flex;
-      align-items:center;
-      gap:4px;
-      white-space:nowrap;
-    }
-    .date-flags input {
-      width:auto;
-      padding:0;
-      margin:0;
-    }
-    body.view-mode .date-input,
-    body.view-mode .date-flags { display:none !important; }
+    body.view-mode .date-input { display:none !important; }
     .mode-badge {
       display:inline-flex; align-items:center; justify-content:center;
       padding:10px 16px; border-radius:999px; font-weight:900;
@@ -245,19 +224,14 @@ function render(){
   tbody.innerHTML = "";
   current().rows.forEach((r,i)=>{
     r.color = r.color || "#2563eb";
-    r.dateMode = r.dateMode || (r.sortDate === "0000-00-00" ? "priority" : (r.sortDate === "9999-12-31" ? "uncertain" : "confirmed"));
     const closedInfo = activeTeam === -1 ? `<div class="mini">來源：${r.closedFrom || "未記錄"}｜結案日：${r.closedAt || "未記錄"}</div>` : "";
     const tr = document.createElement("tr");
     tr.innerHTML = `
       <td><div class="num" style="background:${r.color}">${i+1}</div></td>
       <td>
-        <div class="date-big" style="color:${r.color}">${formatDisplayDate(r)}</div>
-        <div class="date-flags edit-only">
-          <label><input type="checkbox" ${r.dateMode === "priority" ? "checked" : ""} onchange="toggleDateFlag(${i}, 'priority', this.checked)">置頂</label>
-          <label><input type="checkbox" ${r.dateMode === "uncertain" ? "checked" : ""} onchange="toggleDateFlag(${i}, 'uncertain', this.checked)">未確定</label>
-        </div>
-        <input class="date-input" type="date" value="${getDateInputValue(r)}" onchange="updateDate(${i}, this.value)">
-        <div class="mini edit-only">選日期會自動取消置頂／未確定；置頂排最上，未確定排最後</div>
+        <div class="date-big" style="color:${r.color}">${formatDisplayDate(r.sortDate, r.date)}</div>
+        <input class="date-input" type="date" value="${r.sortDate}" onchange="updateDate(${i}, this.value)">
+        <div class="mini edit-only">選日期後會自動排序、放大顯示並套用列色</div>
       </td>
       <td>
         <input value="${escapeHtml(r.project)}" onchange="updateRow(${i},'project',this.value)" style="font-weight:800">
@@ -287,62 +261,19 @@ function escapeHtml(str){
   return String(str).replace(/[&<>"']/g, s => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[s]));
 }
 
-function isRealDate(value){
-  return /^\d{4}-\d{2}-\d{2}$/.test(value || "") && value !== "0000-00-00" && value !== "9999-12-31";
-}
-
-function getDateInputValue(row){
-  return isRealDate(row.sortDate) ? row.sortDate : "";
-}
-
-function formatDateText(sortDate, fallback){
-  if(!isRealDate(sortDate)) return fallback || "未確定";
+function formatDisplayDate(sortDate, fallback){
+  if(!sortDate) return fallback || "未定";
   const parts = sortDate.split("-");
+  if(parts.length !== 3) return fallback || sortDate;
   const d = new Date(sortDate + "T00:00:00");
   const week = ["日","一","二","三","四","五","六"][d.getDay()];
   return `${Number(parts[1])}/${Number(parts[2])}（${week}）`;
 }
 
-function formatDisplayDate(row){
-  if(row.dateMode === "priority" || row.sortDate === "0000-00-00") return "置頂";
-  if(row.dateMode === "uncertain" || row.sortDate === "9999-12-31") return "未確定";
-  return formatDateText(row.sortDate, row.date);
-}
-
 function updateDate(i, value){
   const page = current();
-  if(!value) return;
-  page.rows[i].dateMode = "confirmed";
   page.rows[i].sortDate = value;
-  page.rows[i].date = formatDateText(value, page.rows[i].date);
-  render();
-}
-
-function toggleDateFlag(i, flag, checked){
-  const page = current();
-  const row = page.rows[i];
-
-  if(checked){
-    if(flag === "priority"){
-      row.dateMode = "priority";
-      row.sortDate = "0000-00-00";
-      row.date = "置頂";
-    } else if(flag === "uncertain"){
-      row.dateMode = "uncertain";
-      row.sortDate = "9999-12-31";
-      row.date = "未確定";
-    }
-  } else {
-    if(row.dateMode === flag){
-      row.dateMode = "confirmed";
-      if(!isRealDate(row.sortDate)){
-        row.sortDate = "";
-        row.date = "請選日期";
-      } else {
-        row.date = formatDateText(row.sortDate, row.date);
-      }
-    }
-  }
+  page.rows[i].date = formatDisplayDate(value, page.rows[i].date);
   render();
 }
 
@@ -365,9 +296,8 @@ function updateNotes(v){ current().notes = v; }
 function addRow(){
   if(activeTeam === -1){ alert("已結案頁面只收納結案項目，請回到其他分頁新增任務。"); return; }
   current().rows.push({
-    date:"未確定",
-    sortDate:"9999-12-31",
-    dateMode:"uncertain",
+    date:"12/31（四）",
+    sortDate:"2026-12-31",
     project:"新專案",
     detail:"請輸入細項",
     status:"待確認",
